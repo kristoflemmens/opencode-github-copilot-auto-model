@@ -136,6 +136,13 @@ function pickTemplate(models: Record<string, Model>, familyFilter?: string) {
   const candidates = Object.values(models).filter(
     (m) => m.providerID === PROVIDER_ID && (!familyFilter || familyLabel(m) === familyFilter),
   )
+  // A GPT model on the Responses API first: that is what POST /auto picks, and a pick
+  // is only servable over the anchor's wire API. Catalog order alone would anchor on
+  // whatever comes first (e.g. a Chat Completions model such as kimi-k3).
+  const responses = candidates.find(
+    (m) => SHARED_TRANSPORTS.includes(m.api.npm) && familyLabel(m) === "GPT" && wireAPI(m.api) === "responses",
+  )
+  if (responses) return responses
   for (const npm of SHARED_TRANSPORTS) {
     const match = candidates.find((m) => m.api.npm === npm)
     if (match) return match
@@ -275,7 +282,7 @@ function familyLabel(model?: Model): string | undefined {
   if (fingerprint.includes("gpt") || fingerprint.includes("codex")) return "GPT"
   if (model.api.npm === "@ai-sdk/anthropic") return "Claude"
   if (model.api.npm === "@ai-sdk/google") return "Gemini"
-  if (model.api.npm === "@ai-sdk/github-copilot" || model.api.npm === "@ai-sdk/openai") return "GPT"
+  // No transport fallback to GPT: Kimi, Grok and others ride the Copilot SDK too.
   if (model.family?.trim()) {
     return model.family
       .split(/[^a-zA-Z0-9]+/)
