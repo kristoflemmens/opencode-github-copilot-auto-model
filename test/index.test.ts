@@ -120,6 +120,18 @@ describe("catalog injection", () => {
     expect(resolved.auto.api.id).toBe("gpt-5.4")
   })
 
+  test("anchors on a GPT Responses model even when a Chat-only Copilot model comes first", async () => {
+    const kimi = makeModel("kimi-k3", "kimi-k3", "@ai-sdk/github-copilot", COPILOT, "Kimi K3")
+    const luna = makeModel("gpt-6-luna", "gpt-6-luna", "@ai-sdk/github-copilot", COPILOT, "GPT-6 Luna")
+    await withFetch({ auto: autoPicks("gpt-6-luna") }, async () => {
+      const { resolved, turn } = await setup({ [kimi.id]: kimi, ...catalog, [luna.id]: luna })
+      expect(resolved.auto.api.id).toBe("gpt-5.4")
+      expect(resolved["auto-gpt"].api.id).toBe("gpt-5.4")
+      expect((await turn("auto")).model).toBe("gpt-6-luna")
+      expect((await turn("auto-gpt", { sessionID: "ses_gpt" })).model).toBe("gpt-6-luna")
+    })
+  })
+
   test("routes to a new model the legacy pool never offered", async () => {
     const luna = makeModel("gpt-6-luna", "gpt-6-luna", "@ai-sdk/github-copilot", COPILOT, "GPT-6 Luna")
     await withFetch({ auto: autoPicks("gpt-6-luna") }, async () => {
